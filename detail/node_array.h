@@ -9,7 +9,6 @@
 #include "utils/utils.h"
 
 namespace cukd {
-using namespace cutl;
 
 class NodeArray {
     public:

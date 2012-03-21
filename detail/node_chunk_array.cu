@@ -12,10 +12,8 @@
 #include "algorithms/reduction.h"
 
 namespace cukd {
-using namespace cutl;
 
 namespace device {
-using namespace cutl;
 __global__
 void
 create_chunks_kernel(device::NodeChunkArray arr, int* offsets, int n_nodes,
@@ -28,7 +26,7 @@ __global__
 void
 element_clipping_kernel(int n_parent_nodes, device::NodeChunkArray active,
                         int* p_split_axis, float* p_split_pos,
-                        cutl::device::TriangleArray tris, int n_left);
+                        DevTriangleArray tris, int n_left);
 __global__
 void
 update_parent_aabbs_kernel(int n_nodes, device::NodeChunkArray active,
@@ -45,8 +43,8 @@ element_aabb_boundary_planes_kernel(device::NodeChunkArray nca, int nca_n_nodes,
 __global__
 void
 determine_empty_space_cut_kernel(int dir, int n_nodes,
-                                 cutl::device::AABBArray parent_aabb,
-                                 cutl::device::AABBArray node_aabb,
+                                 DevAABBArray parent_aabb,
+                                 DevAABBArray node_aabb,
                                  int* cut_dir);
 }  // namespace device
 
@@ -96,8 +94,8 @@ NodeChunkArray::empty_space_tags(DevVector<int> & cut_dirs,
     cut_dirs.resize(n_nodes_ + 1, 0);
     n_empty_nodes.resize(n_nodes_ + 1);
 
-    cutl::device::AABBArray dev_parent_aabb = parent_aabb.dev_array();
-    cutl::device::AABBArray dev_node_aabb = node_aabb.dev_array();
+    DevAABBArray dev_parent_aabb = parent_aabb.dev_array();
+    DevAABBArray dev_node_aabb = node_aabb.dev_array();
 
     for(int axis = 0; axis < 3; ++axis)
         determine_empty_space(n_nodes_, axis,
@@ -149,13 +147,13 @@ NodeChunkArray::chunk_node_reduce_aabbs() {
     int* first_idx_ptr = chunk_element_first_idx.pointer();
     int* size_ptr = chunk_size.pointer();
 
-    cutl::device::AABBArray tri_aabb = triangle_aabbs.dev_array();
-    cutl::device::AABBArray c_aabb = chunk_aabb.dev_array();
+    DevAABBArray tri_aabb = triangle_aabbs.dev_array();
+    DevAABBArray c_aabb = chunk_aabb.dev_array();
 
-    chunk_reduce<256, float4, MinReductionMethod<float4> >(
+    chunk_reduce<256, UFloat4, MinReductionMethod<UFloat4> >(
             tri_aabb.minima, c_aabb.minima,
             n_chunks_, first_idx_ptr, size_ptr);
-    chunk_reduce<256, float4, MaxReductionMethod<float4> >(
+    chunk_reduce<256, UFloat4, MaxReductionMethod<UFloat4> >(
             tri_aabb.maxima, c_aabb.maxima,
             n_chunks_, first_idx_ptr, size_ptr);
 
@@ -340,7 +338,7 @@ NodeChunkArray::tag_triangles_left_right(DevVector<int> & tags) {
 void
 NodeChunkArray::element_clipping(DevVector<int> & split_axis,
                                  DevVector<float> & split_pos,
-                                 cutl::TriangleArray & tris, int n_left) {
+                                 TriangleArray & tris, int n_left) {
     dim3 grid(n_chunks(), 1, 1);
     dim3 blocks(256,1,1);
 
@@ -379,8 +377,8 @@ NodeChunkArray::update_parent_aabbs(cukd::NodeChunkArray & active) {
 
 void
 NodeChunkArray::determine_empty_space(int n_nodes, int dir, 
-                                      cutl::device::AABBArray & parent_aabb,
-                                      cutl::device::AABBArray & node_aabb, int* cut_dir) {
+                                      DevAABBArray & parent_aabb,
+                                      DevAABBArray & node_aabb, int* cut_dir) {
     dim3 grid(IntegerDivide(256)(n_nodes),1,1);
     dim3 blocks(256,1,1);
     int shared_size = 3*sizeof(int) + sizeof(float);

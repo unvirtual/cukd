@@ -40,8 +40,8 @@ left_right_split_candidates_kernel(device::NodeChunkArray nca,
 
     // populate triangle boundaries in shared mem
     if(tid < n_elements) {
-        tri_min[tid].vec = nca.triangle_aabb.minima[current_element];
-        tri_max[tid].vec = nca.triangle_aabb.maxima[current_element];
+        tri_min[tid] = nca.triangle_aabb.minima[current_element];
+        tri_max[tid] = nca.triangle_aabb.maxima[current_element];
     }
     __syncthreads();
 

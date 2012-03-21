@@ -44,10 +44,10 @@ struct NodeChunkArray {
     int* node_idx;
     int* chunk_size;
     int* chunk_element_first_idx;
-    cutl::device::AABBArray node_aabb;
-    cutl::device::AABBArray chunk_aabb;
-    cutl::device::AABBArray parent_aabb;
-    cutl::device::AABBArray triangle_aabb;
+    DevAABBArray node_aabb;
+    DevAABBArray chunk_aabb;
+    DevAABBArray parent_aabb;
+    DevAABBArray triangle_aabb;
 };
 
 struct SmallNodeArray {

@@ -6,11 +6,167 @@
 #include "kdtree.h"
 #include "algorithms/reduction.h"
 #include "detail/dev_structs.h"
+#include "utils/intersection.h"
 
 namespace cukd {
 namespace device {
 
-// TODO: Remove hard coded grid and block sizes
+class TreeStack {
+    public:
+        __device__
+        TreeStack() : ptr(0) {};
+
+        __inline__ __device__
+        void push(unsigned int nodeidx, float min, float max) {
+            p_min[ptr] = min;
+            p_max[ptr] = max;
+            node[ptr] = nodeidx;
+            ptr++;
+        }
+
+        __inline__ __device__
+        bool pop(unsigned int & nodeidx, float & min, float & max) {
+            if(ptr > 0) {
+                ptr--;
+                min = p_min[ptr];
+                max = p_max[ptr];
+                nodeidx = node[ptr];
+                return true;
+            }
+            return false;
+        }
+        __inline__ __device__
+        bool empty() { return (ptr == 0); }
+    private:
+        int ptr;
+        unsigned int node[STACK_SIZE];
+        float p_min[STACK_SIZE], p_max[STACK_SIZE];
+};
+
+
+// direct implementation of tree traversal algorithm taken from
+// "Heuristic Ray shooting Algorithms", Vlastimil Havran
+__device__
+int
+ray_traverse_device(const Ray & ray, const UAABB & root, unsigned int *preorder,
+                    DevTriangleArray & tri_vertices,
+                    float & alpha, float & x1, float & x2, int & cost) {
+    TreeStack stack;
+    int ret_tri = -1;
+    cost = 0;
+    float p_min = 0;
+    float p_max = 0;
+
+    unsigned int current_node = 0;
+    bool is_leaf, is_empty, left_empty, right_empty, ray_split_relative,
+         tri_intersect;
+    unsigned int node_first_value, left_node, right_node, split_axis, node_first,
+                 node_second, n_elements, index;
+    float split_position, p_split, current_max, current_min, xalpha, xx1, xx2;
+
+    if(!intersect_aabb(ray, root, p_min, p_max))
+        return -1;
+
+    current_min = p_min;
+    current_max = p_max;
+    alpha = current_max;
+
+    do {
+        cost++;
+        stack.pop(current_node, current_min, current_max);
+
+        node_first_value = preorder[current_node];
+        is_leaf = (node_first_value & leaf_mask) != 0;
+        is_empty = false;
+
+        while(!is_leaf) {
+            cost++;
+            left_node = current_node + 2;
+            right_node = node_first_value & right_node_mask;
+            left_empty = (node_first_value & left_empty_mask) != 0;
+            right_empty = (node_first_value & right_empty_mask) != 0;
+
+            if(left_empty)
+                left_node = 0;
+            if(right_empty)
+                right_node = 0;
+
+            split_axis = (node_first_value & split_axis_mask) >> split_axis_shift;
+            split_position = *(float*) & preorder[current_node + 1];
+
+            p_split = (split_position - ray.origin.component[split_axis])
+                * 1.f/ray.direction.component[split_axis];
+
+            ray_split_relative = ray.origin.component[split_axis] <= split_position;
+            if(ray_split_relative) {
+                node_first = left_node;
+                node_second = right_node;
+            } else {
+                node_first = right_node;
+                node_second = left_node;
+            }
+            if(fabsf(ray.origin.component[split_axis] - split_position) < 1e-8f) {
+                if(1.f/ray.direction.component[split_axis] > 0) {
+                    current_node = node_second;
+                } else {
+                    current_node = node_first;
+                }
+            } else if (p_split > current_max || p_split < 0.f) {
+                current_node = node_first;
+            } else if (p_split < current_min) {
+                current_node = node_second;
+            } else {
+                if(((node_second == left_node) && !left_empty)
+                        || ((node_second == right_node) && !right_empty))
+                    stack.push(node_second, p_split, current_max);
+
+                current_node = node_first;
+                current_max = p_split;
+            }
+
+            if(      ((current_node == left_node) && left_empty)
+                  || ((current_node == right_node) && right_empty)) {
+                is_empty = true;
+                is_leaf = false;
+                break;
+            }
+
+            node_first_value = preorder[current_node];
+            is_leaf = (node_first_value & leaf_mask) != 0;
+        }
+        if(current_max >= p_max) {
+            break;
+        }
+
+        if (is_empty) {
+            continue;
+        };
+
+        n_elements = n_element_mask & preorder[current_node];
+        for(int i = 1; i <= n_elements; ++i){
+            cost++;
+            index = preorder[current_node + i];
+            Triangle tri;
+            tri.v[0] = tri_vertices.v[0][index];
+            tri.v[1] = tri_vertices.v[1][index];
+            tri.v[2] = tri_vertices.v[2][index];
+            tri_intersect = intersect_triangle(ray, tri, xalpha, xx1, xx2);
+            if(tri_intersect && xalpha > 1e-8f && xalpha < alpha) {
+                ret_tri = index;
+                alpha  = xalpha;
+                x1 = xx1;
+                x2 = xx2;
+            }
+
+        }
+        if(alpha < current_max) {
+            break;
+        }
+
+    } while (!stack.empty());
+
+    return ret_tri;
+}
 
 /**********************************************************************************
  *
@@ -18,6 +174,25 @@ namespace device {
  *
  **********************************************************************************/
 
+__global__
+void
+ray_bunch_traverse_kernel(int width, int height, DevRayArray rays, UAABB root,
+                          unsigned int *preorder_tree,
+                          DevTriangleArray triangles, int* hits, int* costs) {
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    float alpha, x1, x2;
+    Ray ray;
+
+    // TODO: return hit coordinates
+    if(i < width && j < height) {
+        int tid = width*j + i;
+        ray.origin = rays.origins[tid];
+        ray.direction = rays.directions[tid];
+        hits[tid] = ray_traverse_device(ray,  root, preorder_tree, triangles, alpha,
+                                        x1, x2, costs[tid]);
+    }
+};
 
 __global__
 void
@@ -29,12 +204,13 @@ append_empty_nodes_kernel(int* cut_dir, int* offset, int* active_indices,
     if(tid >= act_n_nodes)
         return;
 
-    float aabb_data[6] = {active.node_aabb.maxima[tid].x,
-                          active.node_aabb.minima[tid].x,
-                          active.node_aabb.maxima[tid].y,
-                          active.node_aabb.minima[tid].y,
-                          active.node_aabb.maxima[tid].z,
-                          active.node_aabb.minima[tid].z};
+    float aabb_data[6];
+
+#pragma unroll 3
+    for(int i = 0; i < 3; ++i) {
+        aabb_data[2*i]   = active.node_aabb.maxima[tid].component[i];
+        aabb_data[2*i+1] = active.node_aabb.minima[tid].component[i];
+    }
 
     float xdiff = aabb_data[0] - aabb_data[1];
     float ydiff = aabb_data[2] - aabb_data[3];
@@ -173,18 +349,18 @@ split_small_nodes_kernel(device::SplitCandidateArray sca, int* split_indices,
             left_elements = node_elements & sca.left_elements[split_index];
             right_elements = node_elements & sca.right_elements[split_index];
 
-            left_aabb_min.vec = active.na.node_aabb.minima[tid];
-            left_aabb_max.vec = active.na.node_aabb.maxima[tid];
-            right_aabb_min.vec = active.na.node_aabb.minima[tid];
-            right_aabb_max.vec = active.na.node_aabb.maxima[tid];
+            left_aabb_min = active.na.node_aabb.minima[tid];
+            left_aabb_max = active.na.node_aabb.maxima[tid];
+            right_aabb_min = active.na.node_aabb.minima[tid];
+            right_aabb_max = active.na.node_aabb.maxima[tid];
 
             left_aabb_max.component[split_direction] = split_position;
             right_aabb_min.component[split_direction] = split_position;
 
-            next.na.node_aabb.minima[next_left_child_idx] = left_aabb_min.vec;
-            next.na.node_aabb.maxima[next_left_child_idx] = left_aabb_max.vec;
-            next.na.node_aabb.minima[next_right_child_idx] = right_aabb_min.vec;
-            next.na.node_aabb.maxima[next_right_child_idx] = right_aabb_max.vec;
+            next.na.node_aabb.minima[next_left_child_idx] = left_aabb_min;
+            next.na.node_aabb.maxima[next_left_child_idx] = left_aabb_max;
+            next.na.node_aabb.minima[next_right_child_idx] = right_aabb_min;
+            next.na.node_aabb.maxima[next_right_child_idx] = right_aabb_max;
 
             next.element_bits[next_left_child_idx] = left_elements;
             next.element_bits[next_right_child_idx] = right_elements;
@@ -291,7 +467,8 @@ append_empty_nodes(cukd::NodeChunkArray & active_nca, cukd::KDTreeNodeArray & tr
 
     append_empty_nodes_kernel<<<grid,blocks>>>(cut_dirs.pointer(), offsets.pointer(),
                                                active_indices.pointer(),
-                                               active_nca.dev_array(), active_nca.n_nodes(),
+                                               active_nca.dev_array(),
+                                               active_nca.n_nodes(),
                                                old_tree_nodes,
                                                tree_nca.dev_array());
     CUT_CHECK_ERROR("append_empty_nodes_kernel failed");
@@ -301,16 +478,16 @@ append_empty_nodes(cukd::NodeChunkArray & active_nca, cukd::KDTreeNodeArray & tr
 
 void split_small_nodes(cukd::SplitCandidateArray & sca, DevVector<int> & split_indices,
                        DevVector<int> & leaf_tags, DevVector<int> & split_index_diff,
-                       cukd::SmallNodeArray & active, int old_small_nodes, cukd::SmallNodeArray & next,
-                       cukd::KDTreeNodeArray & tree, int old_tree_nodes, int
-                       old_n_leaves) {
+                       cukd::SmallNodeArray & active, int old_small_nodes,
+                       cukd::SmallNodeArray & next, cukd::KDTreeNodeArray & tree,
+                       int old_tree_nodes, int old_n_leaves) {
     dim3 grid(IntegerDivide(256)(old_small_nodes),1,1);
     dim3 blocks(256,1,1);
 
     split_small_nodes_kernel<<<grid, blocks>>>(sca.dev_array(),
             split_indices.pointer(), leaf_tags.pointer(),
-            split_index_diff.pointer(), old_small_nodes, old_tree_nodes, active.dev_array(),
-            next.dev_array(), tree.dev_array(), old_n_leaves);
+            split_index_diff.pointer(), old_small_nodes, old_tree_nodes,
+            active.dev_array(), next.dev_array(), tree.dev_array(), old_n_leaves);
     CUT_CHECK_ERROR("split_small_nodes_kernel failed");
 }
 

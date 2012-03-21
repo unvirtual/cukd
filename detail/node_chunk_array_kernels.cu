@@ -159,8 +159,8 @@ tag_triangles_left_right_kernel(device::NodeChunkArray active,
 
     if(tid < n_tris) {
         element_idx = tid + first_element_index;
-        tri_aabb_min.vec = active.triangle_aabb.minima[element_idx];
-        tri_aabb_max.vec = active.triangle_aabb.maxima[element_idx];
+        tri_aabb_min = active.triangle_aabb.minima[element_idx];
+        tri_aabb_max = active.triangle_aabb.maxima[element_idx];
 
         tag[element_idx + n_elements] = (int) (tri_aabb_max.component[split_dir] > split_pos
                            || tri_aabb_min.component[split_dir] >= split_pos);
@@ -172,20 +172,20 @@ tag_triangles_left_right_kernel(device::NodeChunkArray active,
 __global__
 void
 determine_empty_space_cut_kernel(int dir, int n_nodes,
-                                 cutl::device::AABBArray parent_aabb,
-                                 cutl::device::AABBArray node_aabb,
+                                 DevAABBArray parent_aabb,
+                                 DevAABBArray node_aabb,
                                  int* cut_dir) {
     int tid = blockDim.x*blockIdx.x + threadIdx.x;
     if(tid >= n_nodes)
         return;
-    float ratio = 0.25f;
+    float ratio = 0.12f;
 
     UFloat4 parent_aabb_min, parent_aabb_max, node_aabb_min, node_aabb_max;
 
-    parent_aabb_min.vec = parent_aabb.minima[tid];
-    parent_aabb_max.vec = parent_aabb.maxima[tid];
-    node_aabb_min.vec = node_aabb.minima[tid];
-    node_aabb_max.vec = node_aabb.maxima[tid];
+    parent_aabb_min = parent_aabb.minima[tid];
+    parent_aabb_max = parent_aabb.maxima[tid];
+    node_aabb_min = node_aabb.minima[tid];
+    node_aabb_max = node_aabb.maxima[tid];
 
     float parent_ratio_thr = ratio*(parent_aabb_max.component[dir]
                              - parent_aabb_min.component[dir]);
@@ -202,7 +202,7 @@ __global__
 void
 element_clipping_kernel(int n_parent_nodes, device::NodeChunkArray active,
                         int* p_split_axis, float* p_split_pos,
-                        cutl::device::TriangleArray tris, int n_left) {
+                        DevTriangleArray tris, int n_left) {
     int chunk_id = blockIdx.x;
     int tid = threadIdx.x;
 
@@ -234,8 +234,8 @@ element_clipping_kernel(int n_parent_nodes, device::NodeChunkArray active,
     if(tid < n_tris) {
         element_idx = tid + first_element_index;
         element_tri_idx = active.na.element_idx[element_idx];
-        tri_aabb_min.vec = active.triangle_aabb.minima[element_idx];
-        tri_aabb_max.vec = active.triangle_aabb.maxima[element_idx];
+        tri_aabb_min = active.triangle_aabb.minima[element_idx];
+        tri_aabb_max = active.triangle_aabb.maxima[element_idx];
 
         leftright  = tri_aabb_min.component[split_dir] < split_pos &&
                      tri_aabb_max.component[split_dir] > split_pos;
@@ -243,7 +243,7 @@ element_clipping_kernel(int n_parent_nodes, device::NodeChunkArray active,
         if(leftright) {
 
             for(i = 0; i < 3; ++i)
-                triangle.points[i].vec = tris.v[i][element_tri_idx];
+                triangle.points[i] = tris.v[i][element_tri_idx];
 
             if(element_idx < n_left) {
                 tri_aabb_max.component[split_dir] = split_pos;
@@ -255,8 +255,8 @@ element_clipping_kernel(int n_parent_nodes, device::NodeChunkArray active,
             clip_polygon_to_aabb(triangle, tri_aabb_min, tri_aabb_max);
 
             // explicit unrolling
-            tri_aabb_min.vec = triangle.points[0].vec;
-            tri_aabb_max.vec = triangle.points[0].vec;
+            tri_aabb_min = triangle.points[0];
+            tri_aabb_max = triangle.points[0];
 
             for(i = 1; i < triangle.length; ++i) {
                 tri_aabb_min.component[0] =
@@ -283,8 +283,8 @@ element_clipping_kernel(int n_parent_nodes, device::NodeChunkArray active,
             } else {
                 tri_aabb_min.component[split_dir] = split_pos;
             }
-            active.triangle_aabb.minima[element_idx] = tri_aabb_min.vec;
-            active.triangle_aabb.maxima[element_idx] = tri_aabb_max.vec;
+            active.triangle_aabb.minima[element_idx] = tri_aabb_min;
+            active.triangle_aabb.maxima[element_idx] = tri_aabb_max;
 
         }
     }
@@ -298,18 +298,18 @@ update_parent_aabbs_kernel(int n_nodes, device::NodeChunkArray active,
     UFloat4 min_left, min_right, max_left, max_right;
 
     if(tid < n_nodes) {
-        min_left.vec = active.node_aabb.minima[tid];
-        min_right.vec = min_left.vec;
-        max_left.vec = active.node_aabb.maxima[tid];
-        max_right.vec = max_left.vec;
+        min_left = active.node_aabb.minima[tid];
+        min_right = min_left;
+        max_left = active.node_aabb.maxima[tid];
+        max_right = max_left;
 
         max_left.component[active.na.split_axis[tid]] = active.na.split_position[tid];
         min_right.component[active.na.split_axis[tid]] = active.na.split_position[tid];
 
-        next.parent_aabb.minima[tid] = min_left.vec;
-        next.parent_aabb.minima[tid + n_nodes] = min_right.vec;
-        next.parent_aabb.maxima[tid] = max_left.vec;
-        next.parent_aabb.maxima[tid + n_nodes] = max_right.vec;
+        next.parent_aabb.minima[tid] = min_left;
+        next.parent_aabb.minima[tid + n_nodes] = min_right;
+        next.parent_aabb.maxima[tid] = max_left;
+        next.parent_aabb.maxima[tid + n_nodes] = max_right;
 
         next.na.depth[tid] = active.na.depth[tid] + 1;
         next.na.depth[tid + n_nodes] = active.na.depth[tid] + 1;
@@ -350,27 +350,27 @@ element_aabb_boundary_planes_kernel(device::NodeChunkArray nca, int nca_n_nodes,
 
         for(int i = 0; i < n_elements; ++i) {
             dirs[index] = 0;
-            boundaries[index++] = nca.triangle_aabb.minima[i + first_element].x;
+            boundaries[index++] = nca.triangle_aabb.minima[i + first_element].vec.x;
         }
         for(int i = 0; i < n_elements; ++i) {
             dirs[index] = 0;
-            boundaries[index++] = nca.triangle_aabb.maxima[i + first_element].x;
+            boundaries[index++] = nca.triangle_aabb.maxima[i + first_element].vec.x;
         }
         for(int i = 0; i < n_elements; ++i) {
             dirs[index] = 1;
-            boundaries[index++] = nca.triangle_aabb.minima[i + first_element].y;
+            boundaries[index++] = nca.triangle_aabb.minima[i + first_element].vec.y;
         }
         for(int i = 0; i < n_elements; ++i) {
             dirs[index] = 1;
-            boundaries[index++] = nca.triangle_aabb.maxima[i + first_element].y;
+            boundaries[index++] = nca.triangle_aabb.maxima[i + first_element].vec.y;
         }
         for(int i = 0; i < n_elements; ++i) {
             dirs[index] = 2;
-            boundaries[index++] = nca.triangle_aabb.minima[i + first_element].z;
+            boundaries[index++] = nca.triangle_aabb.minima[i + first_element].vec.z;
         }
         for(int i = 0; i < n_elements; ++i) {
             dirs[index] = 2;
-            boundaries[index++] = nca.triangle_aabb.maxima[i + first_element].z;
+            boundaries[index++] = nca.triangle_aabb.maxima[i + first_element].vec.z;
         }
 
     }
