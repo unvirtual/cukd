@@ -47,8 +47,8 @@ compute_SAH_kernel(device::SmallNodeArray active, device::SplitCandidateArray sc
 #pragma unroll 3
         for(int i = 0; i < 3; ++i)
             split_axis_offset[i] = i*n_splits/3;
-        aabb_min.vec = active.na.node_aabb.minima[node_idx];
-        aabb_max.vec = active.na.node_aabb.maxima[node_idx];
+        aabb_min = active.na.node_aabb.minima[node_idx];
+        aabb_max = active.na.node_aabb.maxima[node_idx];
         parent_inv_area = 1.f/node_area(aabb_min, aabb_max);
     }
     __syncthreads();

@@ -11,13 +11,11 @@
 #include "kdtree.h"
 #include "detail/dev_structs.h"
 #include "algorithms/reduction.h"
-
-using cutl::DevVector;
-using cutl::AABB;
-using cutl::AABBArray;
+#include "utils/utils.h"
+#include "utils/dev_structs.h"
+#include "utils/primitives.h"
 
 namespace cukd {
-
 namespace device {
 
 /**********************************************************************************
@@ -57,6 +55,18 @@ void
 preorder_top_down_kernel(device::KDTreeNodeArray tree, int tree_n_nodes,
                          int level, unsigned int* preorder_node_sizes,
                          unsigned int* addresses, unsigned int* preorder_tree);
+
+__device__
+int
+ray_traverse_device(const Ray & ray, const UAABB & root, unsigned int *preorder,
+                    DevTriangleArray & tri_vertices,
+                    float & alpha, float & x1, float & x2, float & cost);
+__global__
+void
+ray_bunch_traverse_kernel(int width, int height, DevRayArray rays, UAABB root,
+                          unsigned int *preorder_tree,
+                          DevTriangleArray triangles, int* hits, int* costs);
+
 }  // namespace device
 
 /**********************************************************************************
@@ -65,7 +75,7 @@ preorder_top_down_kernel(device::KDTreeNodeArray tree, int tree_n_nodes,
  *
  **********************************************************************************/
 
-KDTree::KDTree(AABB & tree_aabb, TriangleArray & tris, int small_threshold = 64)
+KDTree::KDTree(UAABB & tree_aabb, TriangleArray & tris, int small_threshold = 64)
         : root_aabb(tree_aabb), triangles(tris), _small_threshold(small_threshold), max_depth_(0) {
     active_nca = NodeChunkArray(tris, 1);
     active_nca.parent_aabb.minima.set(0, tree_aabb.minimum);
@@ -400,7 +410,7 @@ KDTree::to_host() {
     thrust::copy(tree_nca.right_nodes.begin(), tree_nca.right_nodes.end(),
                  std::back_inserter(result.right_nodes));
 
-    std::vector<float4> min, max;
+    std::vector<UFloat4> min, max;
     thrust::copy(small_nca.node_aabb.minima.begin(), small_nca.node_aabb.minima.end(),
                  std::back_inserter(min));
     thrust::copy(small_nca.node_aabb.maxima.begin(), small_nca.node_aabb.maxima.end(),
@@ -408,8 +418,8 @@ KDTree::to_host() {
 
     for(int i = 0; i < min.size(); ++i) {
         UAABB aabb;
-        aabb.minimum.vec = min[i];
-        aabb.maximum.vec = max[i];
+        aabb.minimum = min[i];
+        aabb.maximum = max[i];
         result.small_node_aabbs.push_back(aabb);
     }
     int total_elements = tree_nca.n_elements();
@@ -430,25 +440,17 @@ KDTree::to_host() {
     return result;
 }
 
-std::vector<AABB>
-KDTree::small_aabbs() {
-    std::vector<float4> minima;
-    std::vector<float4> maxima;
-    thrust::copy(small_nca.node_aabb.minima.begin(), small_nca.node_aabb.minima.end(),
-                 std::back_inserter(minima));
-    thrust::copy(small_nca.node_aabb.maxima.begin(), small_nca.node_aabb.maxima.end(),
-                 std::back_inserter(maxima));
+void
+KDTree::ray_bunch_traverse(int width, int height, RayArray & rays,
+                           DevVector<int> & hits, DevVector<int> & costs) {
+    dim3 grid(IntegerDivide(8)(width), IntegerDivide(8)(height), 1);
+    dim3 blocks(8, 8, 1);
 
-    std::vector<AABB> result;
-
-    for(int i = 0; i < minima.size(); ++i) {
-        AABB aabb;
-        aabb.minimum = minima[i];
-        aabb.maximum = maxima[i];
-        result.push_back(aabb);
-    }
-
-    return result;
-}
+    device::ray_bunch_traverse_kernel<<<grid, blocks>>>(
+           width, height, rays.dev_array(), root_aabb,
+           preorder_tree.pointer(), triangles.dev_array(),
+           hits.pointer(), costs.pointer());
+    CUT_CHECK_ERROR("ray_bunch_traverse_kernelray_bunch_traverse_kernel failed");
+};
 
 }  // namespace cukd

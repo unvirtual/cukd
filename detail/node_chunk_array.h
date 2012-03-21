@@ -30,7 +30,7 @@ class NodeChunkArray : protected NodeArray {
         NodeChunkArray() {};
         NodeChunkArray(int n_nodes);
         // Note: TriangleArray must have precomputed per-triangle AABBs
-        NodeChunkArray(cutl::TriangleArray & tris, int n_nodes);
+        NodeChunkArray(TriangleArray & tris, int n_nodes);
 
         using NodeArray::n_nodes;
         using NodeArray::n_elements;
@@ -63,8 +63,8 @@ class NodeChunkArray : protected NodeArray {
         // where zl/zr is set if the empty space was found left/right along
         // the z-direction and the same for the x- and y-directions.
         void determine_empty_space(int n_nodes, int dir,
-                                   cutl::device::AABBArray & parent_aabb,
-                                   cutl::device::AABBArray & node_aabb, int* cut_dir);
+                                   DevAABBArray & parent_aabb,
+                                   DevAABBArray & node_aabb, int* cut_dir);
 
         // Append another nca's nodes and elements from node tags.
         // Computes tags of corresponding elements and stores them in
@@ -100,7 +100,7 @@ class NodeChunkArray : protected NodeArray {
         // tp be passed as parameter.
         void element_clipping(DevVector<int> & split_axis,
                               DevVector<float> & split_pos,
-                              cukd::TriangleArray & tris, int n_left);
+                              TriangleArray & tris, int n_left);
 
         // Gets the element's AABB boundary planes sorted by node, by axis and
         // left/right boundary

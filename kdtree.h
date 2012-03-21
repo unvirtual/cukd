@@ -13,7 +13,7 @@
 #include "detail/kdtree_node_array.h"
 #include "detail/small_node_array.h"
 
-namespace cukd { 
+namespace cukd {
 
 const unsigned int leaf_mask = 0x80000000;
 const unsigned int n_element_mask = 0x7fffffff;
@@ -23,11 +23,7 @@ const unsigned int right_empty_mask = 0x20000000;
 const unsigned int split_axis_mask = 0x18000000;
 const unsigned int split_axis_shift = 27;
 
-// temporary, will be removed
-struct UAABB {
-    UFloat4 minimum;
-    UFloat4 maximum;
-};
+const int STACK_SIZE = 64;
 
 // temporary, will be removed
 struct KDTreeHost {
@@ -50,23 +46,20 @@ struct KDTreeHost {
  *
  **********************************************************************************/
 
-using cutl::DevVector;
-using cutl::AABB;
-using cutl::TriangleArray;
-
 class KDTree {
     public:
-        KDTree(AABB & tree_aabb, TriangleArray & tris, int small_threshold);
+        KDTree(UAABB & tree_aabb, TriangleArray & tris, int small_threshold);
         void create();
         void preorder();
         int max_depth() { return max_depth_; };
-        // TODO: remove or improve substantially
+
+        void ray_bunch_traverse(int width, int height, RayArray & rays,
+                                DevVector<int> & hits, DevVector<int> & costs);
         void print();
         void print_preorder();
 
         // temporary, will be removed
         KDTreeHost to_host();
-        std::vector<AABB> small_aabbs();
 
     private:
         // no copies, no assignments
@@ -88,7 +81,7 @@ class KDTree {
         void remove_small_nodes(NodeChunkArray & nca);
 
     private:
-        AABB root_aabb;
+        UAABB root_aabb;
         TriangleArray triangles;
         int _small_threshold;
         int max_depth_;
