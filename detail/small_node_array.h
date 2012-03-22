@@ -15,8 +15,7 @@ namespace cukd {
 class SmallNodeArray : private NodeChunkArray {
     friend class KDTree;
     public:
-        SmallNodeArray() : NodeChunkArray(0), complete_(false) {};
-        SmallNodeArray(int nodes) : NodeChunkArray(nodes) {};
+        SmallNodeArray() : complete_(false) {};
         using NodeChunkArray::resize_nodes;
         using NodeChunkArray::resize_elements;
         void resize_element_bits(int nodes);

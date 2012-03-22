@@ -77,16 +77,7 @@ ray_bunch_traverse_kernel(int width, int height, DevRayArray rays, UAABB root,
 
 KDTree::KDTree(UAABB & tree_aabb, TriangleArray & tris, int small_threshold = 64)
         : root_aabb(tree_aabb), triangles(tris), _small_threshold(small_threshold), max_depth_(0) {
-    active_nca = NodeChunkArray(tris, 1);
-    active_nca.parent_aabb.minima.set(0, tree_aabb.minimum);
-    active_nca.parent_aabb.maxima.set(0, tree_aabb.maximum);
-    active_nca.depth.set(0,0);
-
-    // we don't need chunks in the tree_nca. Empty nodes are written
-    // directly there, the rest is appended from active_nca
-    tree_nca = KDTreeNodeArray();
-    next_nca = NodeChunkArray(0);
-    small_nca = SmallNodeArray(0);
+    active_nca.init_root_node(tris.size(), tris.aabbs, tree_aabb);
 }
 
 void

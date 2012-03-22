@@ -61,29 +61,20 @@ typedef thrust::tuple<thrust::device_vector<int>::iterator,
         thrust::device_vector<int>::iterator,
         AABBArray::AABBIterator, AABBArray::AABBIterator> NodeIteratorTuple;
 
-NodeChunkArray::NodeChunkArray(int n_nodes) : NodeArray(n_nodes), n_chunks_(0) {
-    if(n_nodes > 0) {
-        resize_nodes(1);
-        node_size.set(0, n_elements_);
-        node_element_first_idx.set(0,0);
-        depth.set(0,0);
-    }
-}
+NodeChunkArray::NodeChunkArray() : n_chunks_(0) {}
 
-NodeChunkArray::NodeChunkArray(TriangleArray & tris, int n_nodes)
-        : NodeArray(n_nodes, tris.size()), n_chunks_(0) {
-
-    // initialize the element indices to a sequence first
+void
+NodeChunkArray::init_root_node(int n_elements, AABBArray & tri_aabbs,
+                               const UAABB & root_aabb) {
+    resize_nodes(1);
+    resize_elements(n_elements);
+    tri_aabbs.copy(triangle_aabbs);
     thrust::sequence(element_idx.begin(), element_idx.end());
-    tris.aabbs.copy(triangle_aabbs);
-
-    if(n_nodes > 0) {
-        resize_nodes(1);
-
-        node_size.set(0, n_elements_);
-        node_element_first_idx.set(0,0);
-        depth.set(0,0);
-    }
+    node_size.set(0, n_elements_);
+    node_element_first_idx.set(0,0);
+    parent_aabb.minima.set(0, root_aabb.minimum);
+    parent_aabb.maxima.set(0, root_aabb.maximum);
+    depth.set(0,0);
 }
 
 void
@@ -376,7 +367,7 @@ NodeChunkArray::update_parent_aabbs(cukd::NodeChunkArray & active) {
 
 
 void
-NodeChunkArray::determine_empty_space(int n_nodes, int dir, 
+NodeChunkArray::determine_empty_space(int n_nodes, int dir,
                                       DevAABBArray & parent_aabb,
                                       DevAABBArray & node_aabb, int* cut_dir) {
     dim3 grid(IntegerDivide(256)(n_nodes),1,1);

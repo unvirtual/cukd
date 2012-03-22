@@ -13,23 +13,6 @@ namespace cukd {
 class NodeArray {
     public:
         NodeArray() : n_nodes_(0), n_elements_(0) {};
-        NodeArray(int nodes) : n_nodes_(0), n_elements_(0) {
-            if(nodes != 0) {
-                resize_nodes(nodes);
-            }
-            if(nodes == 1) {
-                resize_nodes(1);
-                depth.set(0,0);
-                node_element_first_idx.set(0,0);
-                resize_nodes(n_nodes_);
-            };
-        }
-        NodeArray(int nodes, int elements) : n_nodes_(nodes), n_elements_(elements) {
-            if(nodes != 0) {
-                resize_nodes(n_nodes_);
-                resize_elements(n_elements_);
-            }
-        };
 
         void resize_nodes(int nodes);
         void resize_elements(int elements);
@@ -85,6 +68,7 @@ inline
 void
 NodeArray::resize_elements(int elements) {
     element_idx.resize(elements);
+    n_elements_ = elements;
 };
 
 inline

@@ -27,10 +27,7 @@ class NodeChunkArray : protected NodeArray {
     friend class KDTree;
     friend class SplitCandidateArray;
     public:
-        NodeChunkArray() {};
-        NodeChunkArray(int n_nodes);
-        // Note: TriangleArray must have precomputed per-triangle AABBs
-        NodeChunkArray(TriangleArray & tris, int n_nodes);
+        NodeChunkArray();
 
         using NodeArray::n_nodes;
         using NodeArray::n_elements;
@@ -39,6 +36,9 @@ class NodeChunkArray : protected NodeArray {
         void resize_nodes(int nodes);
         void resize_elements(int elements);
         void resize_chunks(int chunks);
+
+        void init_root_node(int n_elements, AABBArray & tri_aabbs,
+                            const UAABB & root_aabb);
 
         // Clear all members without freeing memory, raw
         // pointers may still access old elements
