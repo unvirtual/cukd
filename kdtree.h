@@ -55,6 +55,7 @@ class KDTree {
 
         void ray_bunch_traverse(int width, int height, RayArray & rays,
                                 DevVector<int> & hits, DevVector<int> & costs);
+        void clear(TriangleArray & tris);
         void print();
         void print_preorder();
 
@@ -112,7 +113,31 @@ class KDTree {
         DevVector<int> small_elem_tags;
 };
 
+inline void
+KDTree::clear(TriangleArray & tris) {
+    max_depth_ = 0;
+    active_nca.clear();
+    next_nca.clear();
+    small_nca.clear();
+    tree_nca.clear();
+    preorder_tree.clear();
+    n_empty_nodes.clear();
+    cut_dirs.clear();
+    active_indices.clear();
+
+    chunk_sums.clear();
+    node_sums.clear();
+    first_node_idx.clear();
+    out_keys.clear();
+    temp.clear();
+
+    child_diff.clear();
+    tags.clear();
+    small_tag.clear();
+    small_elem_tags.clear();
+
+    active_nca.init_root_node(tris.size(), tris.aabbs, root_aabb);
+};
 
 }  // namespace cukd
-
 #endif // CUKD_KDTREE_H

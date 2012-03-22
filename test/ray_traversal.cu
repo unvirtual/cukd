@@ -74,17 +74,25 @@ int main(int argc, char* argv[]) {
     KDTree kdtree(root_aabb, triarr, 64);
 
     std::cout << "    creating tree..." << std::endl;
-    Timer full("tree creation time: ");
+    Timer full("total tree creation time: ");
 
-    full.start();
     kdtree.create();
     kdtree.preorder();
-    full.stop();
+    
+    for(int i = 0; i < 10; ++i) {
+        full.start();
+        kdtree.clear(triarr);
+        kdtree.create();
+        kdtree.preorder();
+        full.stop();
+    }
     full.print();
+
+    std::cout << "tree creation time average: " << full.get_ms()/10 << " ms" << std::endl;
 
     // run raytraversal and measure the time
     const int repetitions = 100;
-    const int width = 800, height = 600;
+    const int width = 1024, height = 864;
     int n_rays = width * height;
 
     std::vector<Ray> rays_h;
