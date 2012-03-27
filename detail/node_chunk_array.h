@@ -5,8 +5,8 @@
 #ifndef CUKD_NODE_CHUNK_ARRAY_H
 #define CUKD_NODE_CHUNK_ARRAY_H
 
-#include "utils/utils.h"
-#include "utils/primitives.h"
+#include "utils.h"
+#include "primitives.h"
 #include "detail/dev_structs.h"
 #include "detail/node_array.h"
 

@@ -3,8 +3,8 @@
 
 #include <float.h>
 #include "utils/intersection.h"
-#include "utils/utils.h"
-#include "utils/primitives.h"
+#include "utils.h"
+#include "primitives.h"
 
 // defined as inlines, external functions not supported in kernels
 __inline__ __host__ __device__

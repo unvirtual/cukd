@@ -12,7 +12,7 @@
 #include <iostream>
 #include <float.h>
 #include "shared_mem.h"
-#include "utils/utils.h"
+#include "utils.h"
 
 /**********************************************************************************
  *

@@ -9,7 +9,6 @@
 #include <iostream>
 #include "algorithms/shared_mem.h"
 #include "algorithms/reduction.h"
-#include "utils/utils.h"
 
 /**********************************************************************************
  *

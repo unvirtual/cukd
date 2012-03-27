@@ -2,7 +2,7 @@
 // FreeBSD License
 // See https://github.com/unvirtual/cutl/blob/master/LICENSE
 
-#include "utils/primitives.h"
+#include "primitives.h"
 
 /**********************************************************************************
  *
@@ -73,6 +73,16 @@ void
 TriangleArray::compute_aabbs() {
     DevTriangleArray dev_tris = dev_array();
     triangle_aabbs(dev_tris, size());
+}
+
+void 
+TriangleArray::append(const TriangleArray & tris) {
+    int old_size = size();
+    resize(old_size + tris.size());
+    for(int i = 0; i < 3; ++i) {
+        thrust::copy(tris.v[i].begin(), tris.v[i].end(), v[i].begin() + old_size);
+        thrust::copy(tris.n[i].begin(), tris.n[i].end(), n[i].begin() + old_size);
+    }
 }
 
 DevTriangleArray

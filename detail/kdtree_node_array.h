@@ -5,7 +5,7 @@
 #ifndef CUKD_KDTREE_NODE_ARRAY_H
 #define CUKD_KDTREE_NODE_ARRAY_H
 
-#include "utils/utils.h"
+#include "utils.h"
 #include "detail/dev_structs.h"
 #include "detail/node_chunk_array.h"
 #include "detail/node_array.h"

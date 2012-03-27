@@ -7,8 +7,8 @@
 #include <thrust/copy.h>
 #include <thrust/remove.h>
 #include "detail/node_chunk_array.h"
-#include "utils/dev_structs.h"
-#include "utils/utils.h"
+#include "primitives.h"
+#include "utils.h"
 #include "algorithms/reduction.h"
 
 namespace cukd {

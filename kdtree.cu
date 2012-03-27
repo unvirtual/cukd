@@ -11,9 +11,6 @@
 #include "kdtree.h"
 #include "detail/dev_structs.h"
 #include "algorithms/reduction.h"
-#include "utils/utils.h"
-#include "utils/dev_structs.h"
-#include "utils/primitives.h"
 
 namespace cukd {
 namespace device {
@@ -65,7 +62,8 @@ __global__
 void
 ray_bunch_traverse_kernel(int width, int height, DevRayArray rays, UAABB root,
                           unsigned int *preorder_tree,
-                          DevTriangleArray triangles, int* hits, int* costs);
+                          DevTriangleArray triangles, int* hits, int* costs,
+                          float* alphas, float* x1s, float* x2s);
 
 }  // namespace device
 
@@ -85,6 +83,9 @@ KDTree::create() {
     // large node stage
     active_nca.divide_in_chunks();
     active_nca.chunk_node_reduce_aabbs();
+    // set tight bounding box as tree bounding box
+    root_aabb.minimum = active_nca.node_aabb.minima.get_at(0);
+    root_aabb.maximum = active_nca.node_aabb.maxima.get_at(0);
 
     while(active_nca.n_nodes() != 0) {
         large_nodes_process(active_nca, next_nca);
@@ -433,14 +434,17 @@ KDTree::to_host() {
 
 void
 KDTree::ray_bunch_traverse(int width, int height, RayArray & rays,
-                           DevVector<int> & hits, DevVector<int> & costs) {
-    dim3 grid(IntegerDivide(8)(width), IntegerDivide(8)(height), 1);
-    dim3 blocks(8, 8, 1);
+                           DevVector<int> & hits, DevVector<int> & costs,
+                           DevVector<float> & alpha, DevVector<float> & x1, 
+                           DevVector<float> & x2) {
+    dim3 grid(IntegerDivide(256)(width*height), 1, 1);
+    dim3 blocks(256, 1, 1);
 
     device::ray_bunch_traverse_kernel<<<grid, blocks>>>(
            width, height, rays.dev_array(), root_aabb,
            preorder_tree.pointer(), triangles.dev_array(),
-           hits.pointer(), costs.pointer());
+           hits.pointer(), costs.pointer(), alpha.pointer(),
+           x1.pointer(), x2.pointer());
     CUT_CHECK_ERROR("ray_bunch_traverse_kernelray_bunch_traverse_kernel failed");
 };
 

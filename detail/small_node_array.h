@@ -5,7 +5,7 @@
 #ifndef CUKD_SMALL_NODE_ARRAY_H
 #define CUKD_SMALL_NODE_ARRAY_H
 
-#include "utils/utils.h"
+#include "utils.h"
 #include "detail/node_chunk_array.h"
 #include "detail/split_candidate_array.h"
 #include <thrust/sequence.h>

@@ -5,8 +5,8 @@
 #ifndef CUKD_DEV_STRUCTS_H
 #define CUKD_DEV_STRUCTS_H
 
-#include "utils/utils.h"
-#include "utils/dev_structs.h"
+#include "utils.h"
+#include "primitives.h"
 
 /**********************************************************************************
  *

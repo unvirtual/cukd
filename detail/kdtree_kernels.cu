@@ -3,6 +3,7 @@
 // See https://github.com/unvirtual/cukd/blob/master/LICENSE
 
 #include <cutil_inline.h>
+#include "utils.h"
 #include "kdtree.h"
 #include "algorithms/reduction.h"
 #include "detail/dev_structs.h"
@@ -178,19 +179,17 @@ __global__
 void
 ray_bunch_traverse_kernel(int width, int height, DevRayArray rays, UAABB root,
                           unsigned int *preorder_tree,
-                          DevTriangleArray triangles, int* hits, int* costs) {
-    int i = blockIdx.x*blockDim.x + threadIdx.x;
-    int j = blockIdx.y*blockDim.y + threadIdx.y;
-    float alpha, x1, x2;
+                          DevTriangleArray triangles, int* hits, int* costs,
+                          float *alphas, float* x1s, float* x2s) {
+    int tid = blockIdx.x*blockDim.x + threadIdx.x;
     Ray ray;
 
     // TODO: return hit coordinates
-    if(i < width && j < height) {
-        int tid = width*j + i;
+    if(tid < width*height) {
         ray.origin = rays.origins[tid];
         ray.direction = rays.directions[tid];
-        hits[tid] = ray_traverse_device(ray,  root, preorder_tree, triangles, alpha,
-                                        x1, x2, costs[tid]);
+        hits[tid] = ray_traverse_device(ray,  root, preorder_tree, triangles, 
+                                        alphas[tid], x1s[tid], x2s[tid], costs[tid]);
     }
 };
 

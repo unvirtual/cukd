@@ -9,14 +9,31 @@
 #include <sstream>
 #include <vector>
 #include <boost/shared_ptr.hpp>
-#include "utils/utils.h"
-#include "utils/dev_structs.h"
+#include "utils.h"
 
 /**********************************************************************************
  *
  * Primitives, structs of device pointers
  *
  **********************************************************************************/
+
+struct DevAABBArray {
+    int length;
+    UFloat4* minima, *maxima;
+};
+
+struct DevTriangleArray {
+    int length;
+    UFloat4 *v[3];
+    UFloat4 *n[3];
+    DevAABBArray aabbs;
+};
+
+struct DevRayArray {
+    int length;
+    UFloat4 *origins;
+    UFloat4 *directions;
+};
 
 /**********************************************************************************
  *
@@ -119,6 +136,7 @@ class TriangleArray {
 
         void resize(int size);
 
+        void append(const TriangleArray & tris);
         DevTriangleArray dev_array();
 
         void set(int index,

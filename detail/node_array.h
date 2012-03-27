@@ -6,7 +6,7 @@
 #define CUKD_NODE_ARRAY_H
 
 #include "detail/dev_structs.h"
-#include "utils/utils.h"
+#include "utils.h"
 
 namespace cukd {
 

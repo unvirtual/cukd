@@ -7,8 +7,8 @@
 
 #include <boost/shared_ptr.hpp>
 #include <thrust/functional.h>
-#include "utils/utils.h"
-#include "utils/primitives.h"
+#include "utils.h"
+#include "primitives.h"
 #include "detail/node_chunk_array.h"
 #include "detail/kdtree_node_array.h"
 #include "detail/small_node_array.h"
@@ -54,7 +54,9 @@ class KDTree {
         int max_depth() { return max_depth_; };
 
         void ray_bunch_traverse(int width, int height, RayArray & rays,
-                                DevVector<int> & hits, DevVector<int> & costs);
+                                DevVector<int> & hits, DevVector<int> & costs,
+                                DevVector<float> & alpha, DevVector<float> & x1,
+                                DevVector<float> & x2);
         void clear(TriangleArray & tris);
         void print();
         void print_preorder();
