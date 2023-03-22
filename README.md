@@ -5,7 +5,7 @@ k-d tree for triangle clouds in CUDA, based on "Real Time KD-Tree
 Construction on Graphics Hardware" by Zhou et al.
 (check out [these articles](http://unvirtual.github.com/tag/cukd/) for more info)
 
-![Dragon cost](http://unvirtual.github.com/img/dragon_ray_traversal.jpg)
+![Dragon cost](cukd_screenshot.jpg)
 
 This is a working preliminary version with acceptable performance,
 generating the tree for 200k triangles takes ~250ms on an Nvidia GTX
